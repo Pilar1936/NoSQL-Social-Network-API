@@ -1,5 +1,6 @@
 const { Thought, User } = require('../models');
 
+
 const thoughtController = {
   // Obtener todos los pensamientos
   getAllThoughts: async (req, res) => {
@@ -66,14 +67,13 @@ const thoughtController = {
   // Eliminar una reacción de un pensamiento
   removeReaction: async (req, res) => {
     try {
-      const thought = await Thought.findById(req.params.thoughtId);
-      thought.reactions.pull({ reactionId: req.body.reactionId });
-      await thought.save();
-      res.json({ message: 'Reaction removed successfully' });
+        const thought = await Thought.findById(req.params.thoughtId);
+        thought.reactions.pull(req.body.reactionId);
+        await thought.save();
+        res.json({ message: 'Reaction removed successfully' });
     } catch (err) {
-      res.status(400).json(err);
+        res.status(400).json(err);
     }
-  }
 };
 
 module.exports = thoughtController;
