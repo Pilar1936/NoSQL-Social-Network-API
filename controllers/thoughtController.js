@@ -1,79 +1,116 @@
-const { Thought, User } = require('../models');
-
+const { Thought, User } = require("../models");
 
 const thoughtController = {
-  // Obtener todos los pensamientos
-  getAllThoughts: async (req, res) => {
+  // GET all thoughts
+  async getAllThoughts(req, res) {
     try {
-      const thoughts = await Thought.find();
+      const thoughts = await Thought.find({}).sort({ createdAt: -1 });
       res.json(thoughts);
     } catch (err) {
-      res.status(500).json(err);
+      console.error("Error al obtener pensamientos:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
     }
   },
-  // Obtener un pensamiento por su ID
-  getThoughtById: async (req, res) => {
+
+  // GET single thought by _id
+  async getThoughtById(req, res) {
     try {
-      const thought = await Thought.findById(req.params.id);
+      const thoughtId = req.params.id;
+      const thought = await Thought.findById(thoughtId);
+      if (!thought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      }
       res.json(thought);
     } catch (err) {
-      res.status(400).json(err);
+      console.error("Error al obtener pensamiento:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
     }
   },
-  // Crear un nuevo pensamiento
-  createThought: async (req, res) => {
+
+  // POST to create new thought
+  async createThought(req, res) {
     try {
-      const thought = await Thought.create(req.body);
-      const user = await User.findById(req.body.userId);
-      user.thoughts.push(thought._id);
-      await user.save();
-      res.json(thought);
+      const { thoughtText, username, userId } = req.body;
+      const newThought = await Thought.create({ thoughtText, username });
+      await User.findByIdAndUpdate(userId, { $push: { thoughts: newThought._id } });
+      res.status(201).json(newThought);
     } catch (err) {
-      res.status(400).json(err);
+      console.error("Error al crear un nuevo pensamiento:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
     }
   },
-  // Actualizar un pensamiento por su ID
-  updateThought: async (req, res) => {
+
+  // PUT to update thought by _id
+  async updateThoughtById(req, res) {
     try {
-      const thought = await Thought.findByIdAndUpdate(req.params.id, req.body, { new: true });
-      res.json(thought);
+      const thoughtId = req.params.id;
+      const { thoughtText } = req.body;
+      const updatedThought = await Thought.findByIdAndUpdate(thoughtId, { thoughtText }, { new: true });
+      if (!updatedThought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      }
+      res.json(updatedThought);
     } catch (err) {
-      res.status(400).json(err);
+      console.error("Error al actualizar pensamiento:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
     }
   },
-  // Eliminar un pensamiento por su ID
-  deleteThought: async (req, res) => {
+
+  // DELETE to remove thought by _id
+  async deleteThoughtById(req, res) {
     try {
-      const thought = await Thought.findByIdAndDelete(req.params.id);
-      const user = await User.findById(thought.userId);
-      user.thoughts.pull(thought._id);
-      await user.save();
-      res.json({ message: 'Thought deleted successfully' });
+      const thoughtId = req.params.id;
+      const deletedThought = await Thought.findByIdAndDelete(thoughtId);
+      if (!deletedThought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      }
+      res.json({ message: "Pensamiento eliminado correctamente" });
     } catch (err) {
-      res.status(400).json(err);
+      console.error("Error al eliminar pensamiento:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
     }
   },
-  // Agregar una reacción a un pensamiento
-  addReaction: async (req, res) => {
+
+  // POST to create reaction
+  async createReaction(req, res) {
     try {
-      const thought = await Thought.findById(req.params.thoughtId);
-      thought.reactions.push(req.body);
-      await thought.save();
-      res.json(thought);
+      const thoughtId = req.params.thoughtId;
+      const { reactionBody, username } = req.body;
+      const newReaction = { reactionBody, username };
+      const updatedThought = await Thought.findByIdAndUpdate(
+        thoughtId,
+        { $push: { reactions: newReaction } },
+        { new: true }
+      );
+      if (!updatedThought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      }
+      res.json(updatedThought);
     } catch (err) {
-      res.status(400).json(err);
+      console.error("Error al crear reacción:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
     }
   },
-  // Eliminar una reacción de un pensamiento
-  removeReaction: async (req, res) => {
+
+  // DELETE to pull and remove reaction by reaction's reactionId
+  async deleteReactionById(req, res) {
     try {
-        const thought = await Thought.findById(req.params.thoughtId);
-        thought.reactions.pull(req.body.reactionId);
-        await thought.save();
-        res.json({ message: 'Reaction removed successfully' });
+      const thoughtId = req.params.thoughtId;
+      const reactionId = req.params.reactionId;
+      const updatedThought = await Thought.findByIdAndUpdate(
+        thoughtId,
+        { $pull: { reactions: { reactionId: reactionId } } },
+        { new: true }
+      );
+      if (!updatedThought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      }
+      res.json({ message: "Reacción eliminada correctamente" });
     } catch (err) {
-        res.status(400).json(err);
+      console.error("Error al eliminar reacción:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
     }
+  }
 };
 
 module.exports = thoughtController;
