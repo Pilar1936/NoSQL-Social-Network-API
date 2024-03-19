@@ -2,9 +2,9 @@ const { Thought, User } = require("../models");
 
 const thoughtController = {
   // GET all thoughts
-  async getAllThoughts(res) {
+  async getAllThoughts(req, res) {
     try {
-      const thoughts = await Thought.find().populate("reactions");
+      const thoughts = await Thought.find().populate("reactions").sort({ createdAt: -1 });
       res.json(thoughts);
     } catch (err) {
       console.error("Error al obtener todos los pensamientos:", err);
@@ -15,14 +15,11 @@ const thoughtController = {
   // GET single thought by _id
   async getThoughtById(req, res) {
     try {
-      const thought = await Thought.findOne({
-        _id: req.params.thoughtId,
-      }).populate("reactions");
-
+      const thoughtId = req.params.id;
+      const thought = await Thought.findById(thoughtId).populate("reactions");
       if (!thought) {
-        return res.status(404).json({ message: "No thought with that ID" });
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
       }
-
       res.json(thought);
     } catch (err) {
       console.error("Error al obtener pensamiento por ID:", err);
@@ -33,79 +30,87 @@ const thoughtController = {
   // POST to create new thought
   async createThought(req, res) {
     try {
-      const thought = await Thought.create(req.body);
-      const user = await User.findOneAndUpdate(
-        { _id: req.body.userId },
-        { $addToSet: { thoughts: thought._id } },
-        { runValidators: true, new: true }
-      ).populate("thoughts");
-      res.json(user);
+      const { thoughtText, username, userId } = req.body;
+      const newThought = await Thought.create({ thoughtText, username });
+      await User.findByIdAndUpdate(userId, { $push: { thoughts: newThought._id } });
+      res.status(201).json(newThought);
     } catch (err) {
-      console.error("Error al crear pensamiento:", err);
+      console.error("Error al crear un nuevo pensamiento:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   },
 
-  // DELETE a user by ID
-  async deleteUserById(req, res) {
+  // PUT to update thought by _id
+  async updateThoughtById(req, res) {
     try {
-      const userId = req.params.id;
-
-      const deletedUser = await User.findByIdAndDelete(userId);
-
-      if (!deletedUser) {
-        return res.status(404).json({ message: "Usuario no encontrado" });
-      }
-
-      // Eliminar los pensamientos asociados al usuario eliminado
-      await Thought.deleteMany({ user: userId });
-
-      res.json({ message: "Usuario eliminado correctamente" });
-    } catch (err) {
-      console.error("Error al eliminar usuario:", err);
-      res.status(500).json({ error: "Error interno del servidor" });
-    }
-  },
-
-  // Add a friend to user's friend list
-  async addFriend(req, res) {
-    try {
-      const user = await User.findOneAndUpdate(
-        { _id: req.params.id },
-        { $addToSet: { friends: req.body.friendId } }, 
-        { runValidators: true, new: true }
+      const thoughtId = req.params.id;
+      const { thoughtText } = req.body;
+      const updatedThought = await Thought.findByIdAndUpdate(
+        thoughtId,
+        { thoughtText },
+        { new: true }
       );
-
-      if (!user) {
-        return res.status(404).json({ message: 'No se encontró ningún usuario con ese ID' });
+      if (!updatedThought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
       }
-
-      res.json(user);
+      res.json(updatedThought);
     } catch (err) {
-      console.error("Error al agregar amigo:", err);
+      console.error("Error al actualizar pensamiento por ID:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   },
 
-  // Remove a friend from user's friend list
-  async removeFriend(req, res) {
+  // DELETE to remove thought by _id
+  async deleteThoughtById(req, res) {
     try {
-      const userId = req.params.userId;
-      const friendId = req.params.friendId;
-
-      const user = await User.findById(userId);
-
-      if (!user) {
-        return res.status(404).json({ message: 'Usuario no encontrado' });
+      const thoughtId = req.params.id;
+      const deletedThought = await Thought.findByIdAndDelete(thoughtId);
+      if (!deletedThought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
       }
-
-      user.friends.pull(friendId);
-
-      await user.save();
-
-      res.json({ message: 'Amigo eliminado exitosamente' });
+      res.json({ message: "Pensamiento eliminado correctamente" });
     } catch (err) {
-      console.error("Error al eliminar amigo:", err);
+      console.error("Error al eliminar pensamiento por ID:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  },
+
+  // POST to create reaction
+  async createReaction(req, res) {
+    try {
+      const thoughtId = req.params.thoughtId;
+      const { reactionBody, username } = req.body;
+      const newReaction = { reactionBody, username };
+      const updatedThought = await Thought.findByIdAndUpdate(
+        thoughtId,
+        { $push: { reactions: newReaction } },
+        { new: true }
+      );
+      if (!updatedThought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      }
+      res.json(updatedThought);
+    } catch (err) {
+      console.error("Error al crear reacción:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  },
+
+  // DELETE to pull and remove reaction by reaction's _id
+  async deleteReactionById(req, res) {
+    try {
+      const { thoughtId, reactionId } = req.params;
+      const updatedThought = await Thought.findByIdAndUpdate(
+        thoughtId,
+        { $pull: { reactions: { _id: reactionId } } },
+        { new: true }
+      );
+      if (!updatedThought) {
+        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      }
+      res.json({ message: "Reacción eliminada correctamente" });
+    } catch (err) {
+      console.error("Error al eliminar reacción por ID:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   }
