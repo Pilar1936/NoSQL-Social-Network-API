@@ -1,14 +1,14 @@
-const { Thought, User } = require("../models");
+\const { Thought, User } = require("../models");
 
 const thoughtController = {
   // GET all thoughts
-  async getAllThoughts(req, res) {
+  async getAllThoughts(res) {
     try {
       const thoughts = await Thought.find().populate("reactions");
       res.json(thoughts);
     } catch (err) {
       console.error("Error al obtener todos los pensamientos:", err);
-      res.status(500).json({ error: "Error  });
+      res.status(500).json({ error: "Error interno del servidor" });
     }
   },
 
@@ -46,77 +46,66 @@ const thoughtController = {
     }
   },
 
-  // PUT to update thought by _id
-  async updateThoughtById(req, res) {
+  // DELETE a user by ID
+  async deleteUserById(req, res) {
     try {
-      const thoughtId = req.params.id;
-      const { thoughtText } = req.body;
-      const updatedThought = await Thought.findByIdAndUpdate(
-        thoughtId,
-        { thoughtText },
-        { new: true }
-      );
-      if (!updatedThought) {
-        return res.status(404).json({ message: "Thought not found" });
+      const userId = req.params.id;
+
+      const deletedUser = await User.findByIdAndDelete(userId);
+
+      if (!deletedUser) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
       }
-      res.json(updatedThought);
+
+      // Eliminar los pensamientos asociados al usuario eliminado
+      await Thought.deleteMany({ user: userId });
+
+      res.json({ message: "Usuario eliminado correctamente" });
     } catch (err) {
-      console.error("Error al actualizar pensamiento por ID:", err);
+      console.error("Error al eliminar usuario:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   },
 
-  // DELETE to remove thought by _id
-  async deleteThoughtById(req, res) {
+  // Add a friend to user's friend list
+  async addFriend(req, res) {
     try {
-      const thoughtId = req.params.id;
-      const deletedThought = await Thought.findByIdAndDelete(thoughtId);
-      if (!deletedThought) {
-        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      const user = await User.findOneAndUpdate(
+        { _id: req.params.id },
+        { $addToSet: { friends: req.body.friendId } }, 
+        { runValidators: true, new: true }
+      );
+
+      if (!user) {
+        return res.status(404).json({ message: 'No se encontró ningún usuario con ese ID' });
       }
-      res.json({ message: "Thought removed correctly" });
+
+      res.json(user);
     } catch (err) {
-      console.error("Error al eliminar pensamiento por ID:", err);
+      console.error("Error al agregar amigo:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   },
 
-  // POST to create reaction
-  async createReaction(req, res) {
+  // Remove a friend from user's friend list
+  async removeFriend(req, res) {
     try {
-      const thoughtId = req.params.thoughtId;
-      const { reactionBody, username } = req.body;
-      const newReaction = { reactionBody, username };
-      const updatedThought = await Thought.findByIdAndUpdate(
-        thoughtId,
-        { $push: { reactions: newReaction } },
-        { new: true }
-      );
-      if (!updatedThought) {
-        return res.status(404).json({ message: "Pensamiento no encontrado" });
-      }
-      res.json(updatedThought);
-    } catch (err) {
-      console.error("Error al crear reacción:", err);
-      res.status(500).json({ error: "Error interno del servidor" });
-    }
-  },
+      const userId = req.params.userId;
+      const friendId = req.params.friendId;
 
-  // DELETE to pull and remove reaction by reaction's _id
-  async deleteReactionById(req, res) {
-    try {
-      const { thoughtId, reactionId } = req.params;
-      const updatedThought = await Thought.findByIdAndUpdate(
-        thoughtId,
-        { $pull: { reactions: { _id: reactionId } } },
-        { new: true }
-      );
-      if (!updatedThought) {
-        return res.status(404).json({ message: "Pensamiento no encontrado" });
+      const user = await User.findById(userId);
+
+      if (!user) {
+        return res.status(404).json({ message: 'Usuario no encontrado' });
       }
-      res.json({ message: "Reacción eliminada correctamente" });
+
+      user.friends.pull(friendId);
+
+      await user.save();
+
+      res.json({ message: 'Amigo eliminado exitosamente' });
     } catch (err) {
-      console.error("Error al eliminar reacción por ID:", err);
+      console.error("Error al eliminar amigo:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   }
