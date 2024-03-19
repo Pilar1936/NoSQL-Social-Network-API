@@ -4,25 +4,28 @@ const thoughtController = {
   // GET all thoughts
   async getAllThoughts(req, res) {
     try {
-      const thoughts = await Thought.find({}).sort({ createdAt: -1 });
+      const thoughts = await Thought.find().populate("reactions");
       res.json(thoughts);
     } catch (err) {
-      console.error("Error al obtener pensamientos:", err);
-      res.status(500).json({ error: "Error interno del servidor" });
+      console.error("Error al obtener todos los pensamientos:", err);
+      res.status(500).json({ error: "Error  });
     }
   },
 
   // GET single thought by _id
   async getThoughtById(req, res) {
     try {
-      const thoughtId = req.params.id;
-      const thought = await Thought.findById(thoughtId);
+      const thought = await Thought.findOne({
+        _id: req.params.thoughtId,
+      }).populate("reactions");
+
       if (!thought) {
-        return res.status(404).json({ message: "Pensamiento no encontrado" });
+        return res.status(404).json({ message: "No thought with that ID" });
       }
+
       res.json(thought);
     } catch (err) {
-      console.error("Error al obtener pensamiento:", err);
+      console.error("Error al obtener pensamiento por ID:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   },
@@ -30,12 +33,15 @@ const thoughtController = {
   // POST to create new thought
   async createThought(req, res) {
     try {
-      const { thoughtText, username, userId } = req.body;
-      const newThought = await Thought.create({ thoughtText, username });
-      await User.findByIdAndUpdate(userId, { $push: { thoughts: newThought._id } });
-      res.status(201).json(newThought);
+      const thought = await Thought.create(req.body);
+      const user = await User.findOneAndUpdate(
+        { _id: req.body.userId },
+        { $addToSet: { thoughts: thought._id } },
+        { runValidators: true, new: true }
+      ).populate("thoughts");
+      res.json(user);
     } catch (err) {
-      console.error("Error al crear un nuevo pensamiento:", err);
+      console.error("Error al crear pensamiento:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   },
@@ -45,13 +51,17 @@ const thoughtController = {
     try {
       const thoughtId = req.params.id;
       const { thoughtText } = req.body;
-      const updatedThought = await Thought.findByIdAndUpdate(thoughtId, { thoughtText }, { new: true });
+      const updatedThought = await Thought.findByIdAndUpdate(
+        thoughtId,
+        { thoughtText },
+        { new: true }
+      );
       if (!updatedThought) {
-        return res.status(404).json({ message: "Pensamiento no encontrado" });
+        return res.status(404).json({ message: "Thought not found" });
       }
       res.json(updatedThought);
     } catch (err) {
-      console.error("Error al actualizar pensamiento:", err);
+      console.error("Error al actualizar pensamiento por ID:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   },
@@ -64,9 +74,9 @@ const thoughtController = {
       if (!deletedThought) {
         return res.status(404).json({ message: "Pensamiento no encontrado" });
       }
-      res.json({ message: "Pensamiento eliminado correctamente" });
+      res.json({ message: "Thought removed correctly" });
     } catch (err) {
-      console.error("Error al eliminar pensamiento:", err);
+      console.error("Error al eliminar pensamiento por ID:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   },
@@ -92,14 +102,13 @@ const thoughtController = {
     }
   },
 
-  // DELETE to pull and remove reaction by reaction's reactionId
+  // DELETE to pull and remove reaction by reaction's _id
   async deleteReactionById(req, res) {
     try {
-      const thoughtId = req.params.thoughtId;
-      const reactionId = req.params.reactionId;
+      const { thoughtId, reactionId } = req.params;
       const updatedThought = await Thought.findByIdAndUpdate(
         thoughtId,
-        { $pull: { reactions: { reactionId: reactionId } } },
+        { $pull: { reactions: { _id: reactionId } } },
         { new: true }
       );
       if (!updatedThought) {
@@ -107,7 +116,7 @@ const thoughtController = {
       }
       res.json({ message: "Reacción eliminada correctamente" });
     } catch (err) {
-      console.error("Error al eliminar reacción:", err);
+      console.error("Error al eliminar reacción por ID:", err);
       res.status(500).json({ error: "Error interno del servidor" });
     }
   }

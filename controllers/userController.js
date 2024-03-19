@@ -2,59 +2,60 @@ const { User, Thought } = require('../models');
 
 const userController = {
   // Obtener todos los usuarios
-  getAllUsers(req, res) {
-    User.find({})
-      .populate({ 
-        path: "thoughts", 
-        select: "-__v" 
-      })
-      .select("-__v")
-      .sort({ _id: -1 })
-      .then((dbUserData) => {
-        res.json(dbUserData);
-      })
-      .catch((err) => {
-        console.error("Error al obtener usuarios:", err);
-        res.status(500).json({ error: "Error interno del servidor" });
-      });
+  async getAllUsers(_req, res) {
+    try {
+      const users = await User.find({})
+        .populate({ 
+          path: "friends", 
+          select: "-__v" 
+        })
+        .select("-__v")
+        .sort({ _id: -1 });
+
+      res.json(users);
+    } catch (err) {
+      console.error("Error al obtener usuarios:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
   },
 
   // Obtener un usuario por su ID
-  getUserById(req, res) {
-    const userId = req.params.id; 
-    User.findById(userId)
-      .populate({ 
-        path: "thoughts", 
-        select: "-__v" 
-      })
-      .populate({ 
-        path: "friends", 
-        select: "-__v" 
-      }) 
-      .select("-__v")
-      .then((dbUserData) => {
-        if (!dbUserData) {
-          return res.status(404).json({ message: "Usuario no encontrado" });
+  async getUserById(req, res) {
+    try {
+        const userId = req.params.id;
+        const user = await User.findOne({ _id: userId })
+            .populate({
+                path: "thoughts",
+                select: "-__v"
+            })
+            .populate({
+                path: "friends",
+                select: "-__v"
+            })
+            .select("-__v");
+        
+        if (!user) {
+            return res.status(404).json({ message: 'No user was found with this ID!' });
         }
-        res.json(dbUserData);
-      })
-      .catch((err) => {
-        console.error("Error al obtener usuario por ID:", err);
-        res.status(500).json({ error: "Error interno del servidor" });
-      });
-  },
-
-
-// POST a new user
-async createUser(req, res) {
-  try {
-    const newUser = await User.create(req.body);
-    res.status(201).json(newUser);
-  } catch (err) {
-    console.error("Error al crear usuario:", err);
-    res.status(500).json({ error: "Error interno del servidor" });
-  }
+        
+        res.json(user);
+    } catch (err) {
+        res.status(500).json(err);
+    }
 },
+
+
+
+  // POST a new user
+  async createUser(req, res) {
+    try {
+      const newUser = await User.create(req.body);
+      res.status(201).json(newUser);
+    } catch (err) {
+      console.error("Error al crear usuario:", err);
+      res.status(500).json({ error: "Error interno del servidor" });
+    }
+  },
 
   // Actualizar un usuario por su ID
   async updateUserById(req, res) {

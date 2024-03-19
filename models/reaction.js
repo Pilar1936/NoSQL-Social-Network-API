@@ -1,15 +1,15 @@
-const mongoose = require('mongoose');
-const { Schema } = mongoose;
+const { Schema,Types } = require('mongoose')
 
 const reactionSchema = new Schema({
     reactionId: {
-        type: Schema.Types.ObjectId(), 
-        default:()=>Types.ObjectId()
-    },
+        type: Schema.Types.ObjectId, 
+        default: () => new Types.ObjectId()
+        },
     reactionBody: {
         type: String,
         required: true,
-        maxlenght: 280
+        maxlength: 280,
+        minlength: 1,
 
     },
     username:{
@@ -23,7 +23,7 @@ const reactionSchema = new Schema({
     }
 },{
     toJSON: {
-        virtuals: true,
+        
         getters: true
       },
       id: false
