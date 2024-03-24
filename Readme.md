@@ -27,7 +27,6 @@ N/A
 
 
 ## Video
-To see video click  [her](https://drive.google.com/file/d/18_l-MknmwTGBSoQS7kLoboShFbpBOKxs/view)
-
+To see video click [HERE](https://go.screenpal.com/watch/cZeZY7V7E7f)
 ## Questions
 For any questions, please contact [pilar19](https://github.com/pilar19) via GitHub or email at N/A.
